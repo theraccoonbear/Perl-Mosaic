@@ -8,6 +8,7 @@ use Cache::FileCache;
 use Color::Similarity::HCL qw (rgb2hcl distance_hcl);
 use Getopt::Long;
 use Carp;
+use POSIX;
 
 my $tile_set = 'misc';
 my $cell_size = 20;
@@ -32,6 +33,7 @@ my $mosaic_root = "$FindBin::Bin/mosaic/";
 my $tile_path = $mosaic_root . 'tiles/' . $tile_set . '/';
 my $src_path = $mosaic_root . 'source/';
 my $gen_path = $mosaic_root . 'generated/';
+my $dbg_path = $mosaic_root . 'debug/';
 
 my $cache = new Cache::FileCache({
 	cache_root => $mosaic_root . 'tmp',
@@ -56,24 +58,13 @@ sub avgImg {
 	my $r_avg = 0;
 	my $g_avg = 0;
 	my $b_avg = 0;
-	my $min_r = 10000;
-	my $min_g = 10000;
-	my $min_b = 10000;
-	my $max_r = 0;
-	my $max_g = 0;
-	my $max_b = 0;
+	
 	my $cnt = 0;
 	foreach my $x (($ox + 1)..($ox + 1 + $w)) {
 		foreach my $y (($oy + 1)..($oy + 1 + $h))  {
 			my $index = $im->getPixel($x-1,$y-1);
 			my ($r,$g,$b) = $im->rgb($index);
-			
-			#if ($r < $min_r) { $min_r = $r; }
-			#if ($r > $max_r) { $max_r = $r; }
-			#if ($g < $min_g) { $min_g = $g; }
-			#if ($g > $max_g) { $max_g = $g; }
-			#if ($b < $min_b) { $min_b = $b; }
-			#if ($b > $max_b) { $max_b = $b; }
+		
 			
 			$r_avg += $r;
 			$g_avg += $g;
@@ -88,18 +79,25 @@ sub avgImg {
 	my $average = {
 		r => $r_avg_val,
 		g => $g_avg_val,
-		b => $b_avg_val,
-		#min_r => $min_r,
-		#min_g => $min_g,
-		#min_b => $min_b,
-		#max_r => $max_r,
-		#max_g => $max_g,
-		#max_b => $max_b,
+		b => $b_avg_val
 	};
 	
 	return $average;
 	
 } # avgImg()
+
+sub saveJpg {
+	my $img = shift @_;
+	my $path = shift @_;
+	my $qual = shift @_ || 80;
+	
+	my $jpg_data = $img->jpeg($qual);
+
+	open(JPEGFH ,">$path") or die "Can't write $path: $!";
+	binmode JPEGFH;
+	print JPEGFH $jpg_data;
+	close JPEGFH;
+}
 
 sub colorDist {
 	my $c1 = shift @_;
@@ -123,7 +121,9 @@ foreach my $f (@FILES) {
 		my $tmp_img = GD::Image->newFromJpeg($image_path);
 		my ($tw, $th) = $tmp_img->getBounds();
 		$tiles->{$f} = GD::Image->new($output_size, $output_size); #$cell_size, $cell_size);
+		#$image->copyResized($sourceImage,$dstX,$dstY,$srcX,$srcY,$destW,$destH,$srcW,$srcH)
 		$tiles->{$f}->copyResized($tmp_img, 0, 0, 0, 0, $output_size, $output_size, $tw, $th); # $cell_size, $cell_size, $tw ,$th);
+		saveJpg($tiles->{$f}, $dbg_path . $f);
 		$tile_avg_color->{$f} = $cache->get($cache_key);
 		if (!$tile_avg_color->{$f}) {
 			my $im = GD::Image->newFromJpeg($image_path);
@@ -136,16 +136,30 @@ foreach my $f (@FILES) {
 }
 
 my $image_path = $src_path . $src_file;
-print "$image_path\n";
+
 my $src = GD::Image->newFromJpeg($image_path);
 my ($width, $height) = $src->getBounds();
 
-my $horiz = $width / $sample_size;
-my $vert = $height / $sample_size;
+my $horiz = ceil($width / $sample_size);
+my $vert = ceil($height / $sample_size);
 
+my $output_width = $horiz * $output_size;
+my $output_height = $vert * $output_size;
 
 my $gen_file = $gen_path . $tile_set . '-' . $src_file;
-my $gen = GD::Image->new($horiz * $output_size, $vert * $output_size); # $width, $height);
+my $gen = GD::Image->new($output_width, $output_height);
+
+
+print <<__JOB;
+Source Image: $image_path
+Source Dimensions: $width x $height
+Sample Size: $sample_size
+Grid Dimensions: $horiz x $vert
+Output Size: $output_size
+Generated Dimensions: $output_width x $output_height
+
+__JOB
+
 
 #for (my $y = 0; $y < $height; $y += $sample_size) { # $cell_size) {
 #	for (my $x = 0; $x < $width; $x += $sample_size) { # $cell_size) {
@@ -156,6 +170,7 @@ for (my $y_idx = 0; $y_idx < $vert; $y_idx++) { # $cell_size) {
 		my $iy = $y_idx * $sample_size;
 		my $ox = $x_idx * $output_size;
 		my $oy = $y_idx * $output_size;
+		
 		
 		my $avg =  avgImg($src, $ix, $iy, $sample_size, $sample_size); #$cell_size, $cell_size);
 		my $closest = 'XXX';
@@ -168,9 +183,11 @@ for (my $y_idx = 0; $y_idx < $vert; $y_idx++) { # $cell_size) {
 			}
 		}
 		#$image->copyResized($sourceImage,$dstX,$dstY,$srcX,$srcY,$destW,$destH,$srcW,$srcH)
-		$gen->copyResized($tiles->{$closest}, $ox, $oy, $ix, $iy, $output_size, $output_size, $sample_size, $sample_size); # $cell_size, $cell_size, $tw ,$th);
-		#$gen->copy($tiles->{$closest}, $ix, $iy, 0, 0, $cell_size, $cell_size);
+		#$gen->copyResized($tiles->{$closest}, $ox, $oy, $ix, $iy, $output_size, $output_size, $output_size, $output_size);
+		$gen->copy($tiles->{$closest}, $ox, $oy, 0, 0, $output_size, $output_size);
 	}
+	my $percent = floor(($y_idx / $vert) * 1000) / 10;
+	print "${percent}% complete.\n";
 }
 
 my $jpg_data = $gen->jpeg(80);
