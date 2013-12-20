@@ -5,8 +5,8 @@ use FindBin;
 use Data::Dumper;
 use GD::Image;
 use Cache::FileCache;
-#use Graphics::Color::RGB;
 use Color::Similarity::HCL qw (rgb2hcl distance_hcl);
+
 # Disable output buffering
 select((select(STDOUT), $|=1)[0]);
 
@@ -20,8 +20,6 @@ my $cache = new Cache::FileCache({
 });
 
 my $cell_size = 20;
-#my $grid = '10x10';
-#my ($grid_width, $grid_height) = split(/\s*x\s*/, $grid);
 
 
 opendir DFH, $tile_path;
@@ -77,12 +75,12 @@ sub avgImg {
 		r => $r_avg_val,
 		g => $g_avg_val,
 		b => $b_avg_val,
-		min_r => $min_r,
-		min_g => $min_g,
-		min_b => $min_b,
-		max_r => $max_r,
-		max_g => $max_g,
-		max_b => $max_b,
+		#min_r => $min_r,
+		#min_g => $min_g,
+		#min_b => $min_b,
+		#max_r => $max_r,
+		#max_g => $max_g,
+		#max_b => $max_b,
 	};
 	
 	return $average;
@@ -93,29 +91,11 @@ sub colorDist {
 	my $c1 = shift @_;
 	my $c2 = shift @_;
 	
-	#my $color_1 = Graphics::Color::RGB->new({
-	#	red => $c1->{r}/255,
-	#	blue => $c1->{b}/255,
-	#	green => $c1->{g}/255,
-	#});
-	#
-	#my $color_2 = Graphics::Color::RGB->new({
-	#	red => $c2->{r}/255,
-	#	blue => $c2->{b}/255,
-	#	green => $c2->{g}/255,
-	#});
-	#my ($hue_1, $chroma_1, $light_1) = rgb2hcl($c1->{r}, $c1->{g}, $c1->{b});
-	#my ($hue_2, $chroma_2, $light_2) = rgb2hcl($c2->{r}, $c2->{g}, $c2->{b});
 	my $color_1 = rgb2hcl($c1->{r}, $c1->{g}, $c1->{b});
 	my $color_2 = rgb2hcl($c2->{r}, $c2->{g}, $c2->{b});
 	
-	#print Dumper($color_1);
-	#print Dumper($color_2);
-	#print Dumper(distance_hcl($color_1, $color_2));
-	
   my $d = distance_hcl($color_1, $color_2);
 	return $d;
-	#return sqrt( (($c1->{r} - $c2->{r}) ** 2) + (($c1->{g} - $c2->{g}) ** 2) + (($c1->{b} - $c2->{b}) ** 2) );
 }
 
 my $tile_avg_color = {};
@@ -136,16 +116,9 @@ foreach my $f (@FILES) {
 	}
 }
 
-#print Dumper($tile_avg_color);
-
-#sqrt( (r1 - r2)2 + (g1 - g2)2 + (b1 - b2)2 ).
-
 
 my $src = GD::Image->newFromJpeg($src_path . 'madison-skyline-medium.jpg');
 my ($width, $height) = $src->getBounds();
-#my $av = avgImg($src, 0, 0, 50, 50);
-#print Dumper($av);
-
 
 print <<__START;
 <!DOCTYPE html>
