@@ -6,6 +6,10 @@ use Data::Dumper;
 use GD::Image;
 use Cache::FileCache;
 use Color::Similarity::HCL qw (rgb2hcl distance_hcl);
+use Getopt::Long;
+
+my $tile_set = 'default';
+
 
 # Disable output buffering
 select((select(STDOUT), $|=1)[0]);
