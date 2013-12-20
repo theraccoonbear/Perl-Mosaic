@@ -74,9 +74,6 @@ sub avgImg {
 			$g_avg += $g;
 			$b_avg += $b;
 			$cnt++;
-			#if (!($cnt % 1000)) {
-			#	print STDERR ".";
-			#}
 		}
 	}
 	
@@ -116,15 +113,13 @@ my $tiles = {};
 foreach my $f (@FILES) {
 	
 	my $image_path  = $tile_path . $f;
-	my $cache_key = "TILE:$f";
+	my $cache_key = "TILE::${tile_set}::${f}";
 	if (-f $image_path && $f =~ m/\.(jpe?g)$/gi) {
 		my $tmp_img = GD::Image->newFromJpeg($image_path);
-		print Dumper($tmp_img);
 		my ($tw, $th) = $tmp_img->getBounds();
 		$tiles->{$f} = GD::Image->new($cell_size, $cell_size);
 		
 		$tiles->{$f}->copyResized($tmp_img, 0, 0, 0, 0, $cell_size, $cell_size, $tw ,$th);
-		#$image->copyResized($sourceImage,$dstX,$dstY, $srcX,$srcY,$destW,$destH,$srcW,$srcH)
 		$tile_avg_color->{$f} = $cache->get($cache_key);
 		if (!$tile_avg_color->{$f}) {
 			my $im = GD::Image->newFromJpeg($image_path);
@@ -136,7 +131,9 @@ foreach my $f (@FILES) {
 	}
 }
 
-my $src = GD::Image->newFromJpeg($src_path . $src_file);
+my $image_path = $src_path . $src_file;
+print "$image_path\n";
+my $src = GD::Image->newFromJpeg($image_path);
 my ($width, $height) = $src->getBounds();
 
 
@@ -144,40 +141,7 @@ my $gen_file = $gen_path . $src_file;
 my $gen = GD::Image->new($width, $height);
 
 
-#print <<__START;
-#<!DOCTYPE html>
-#<html>
-#	<head>
-#		<title>Mosaic</title>
-#		<style type="text/css">
-#			html, body {
-#				overflow-x: scroll;
-#			}
-#			
-#			div {
-#				margin: 0px;
-#				padding: 0px;
-#				cell-padding: 0px;
-#				border: 0px;
-#				float: left;
-#				display: inline-block;
-#				width: ${cell_size}px;
-#				height: ${cell_size}px;
-#			}
-#			
-#			img {
-#				width: ${cell_size}px;
-#				height: ${cell_size}px;
-#			}
-#		</style>
-#	</head>
-#	<body>
-#__START
-
-#print "<table>\n";
-
 for (my $y = 0; $y < $height; $y += $cell_size) {
-	#print "  <tr>\n";
 	for (my $x = 0; $x < $width; $x += $cell_size) {
 		my $avg =  avgImg($src, $x, $y, $cell_size, $cell_size);
 		my $closest = 'XXX';
@@ -191,25 +155,12 @@ for (my $y = 0; $y < $height; $y += $cell_size) {
 		}
 		
 		$gen->copy($tiles->{$closest}, $x, $y, 0, 0, $cell_size, $cell_size);
-		#print "<div>";
-		#print "<img src=\"../tiles/$closest\">";
-		#print "</div>";
 	}
-	#print "<br>";
-	#print "  </tr>\n";
 }
 
 my $jpg_data = $gen->jpeg(80);
-#open (DISPLAY,"| display -") || die;
+
 open(JPEGFH ,">$gen_file") or die "Can't write $gen_file: $!";
 binmode JPEGFH;
 print JPEGFH $jpg_data;
 close JPEGFH;
-
-#print <<__END;
-#</table>
-#</body>
-#</html>
-#__END
-
-
