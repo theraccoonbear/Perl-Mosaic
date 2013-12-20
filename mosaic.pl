@@ -172,7 +172,7 @@ for (my $y_idx = 0; $y_idx < $vert; $y_idx++) { # $cell_size) {
 		my $oy = $y_idx * $output_size;
 		
 		
-		my $avg =  avgImg($src, $ix, $iy, $sample_size, $sample_size); #$cell_size, $cell_size);
+		my $avg = avgImg($src, $ix, $iy, $sample_size, $sample_size); #$cell_size, $cell_size);
 		my $closest = 'XXX';
 		my $closest_dist = 100000000000;
 		foreach my $clr (keys %$tile_avg_color) {
