@@ -26,6 +26,8 @@ GetOptions(
 
 $output_size = $output_size < 1 ? $sample_size : $output_size;
 
+# add some parameter sanity checking
+
 # Disable output buffering
 select((select(STDOUT), $|=1)[0]);
 
